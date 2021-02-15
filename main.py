@@ -1,7 +1,12 @@
+import os
 import sys
 import pygame
 
 buttons = []
+
+pygame.init()
+size = width, height = 1280, 720
+screen = pygame.display.set_mode(size)
 
 
 def terminate():
@@ -9,9 +14,29 @@ def terminate():
     sys.exit()
 
 
+def load_image(name, colorkey=None):
+    fullname = os.path.join('data', name)
+    # если файл не существует, то выходим
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+    image = pygame.image.load(fullname)
+    if colorkey is not None:
+        image = image.convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
+
+
+FPS = 50
+clock = pygame.time.Clock()
+
+
 class Button:
-    def create_button(self, surface, color, x, y, length, height, width, text, text_color):
-        surface = self.draw_button(surface, color, length, height, x, y, width)
+    def create_button(self, surface, x, y, length, height, width, text, text_color):
         surface = self.write_text(surface, text, text_color, length, height, x, y)
         self.rect = pygame.Rect(x, y, length, height)
         return surface
@@ -22,20 +47,6 @@ class Button:
         myText = myFont.render(text, 1, text_color)
         surface.blit(myText, (
             (x + length / 2) - myText.get_width() / 2, (y + height / 2) - myText.get_height() / 2))
-        return surface
-
-    def draw_button(self, surface, color, length, height, x, y, width):
-        # for i in range(1, 10):
-            # s = pygame.Surface((length + (i * 2), height + (i * 2)))
-            # s.fill(color)
-            # alpha = (255 / (i + 2))
-            # if alpha <= 0:
-                # alpha = 1
-            # s.set_alpha(alpha)
-            # pygame.draw.rect(s, color, (x - i, y - i, length + i, height + i), width)
-            # surface.blit(s, (x - i, y - i))
-        # pygame.draw.rect(surface, color, (x, y, length, height), 0)
-        # pygame.draw.rect(surface, (190, 190, 190), (x, y, length, height), 1)
         return surface
 
     def pressed(self, mouse):
@@ -62,14 +73,15 @@ class Menu:
 
     # Update the display and show the button
     def update_display(self):
-        background = [pygame.image.load('data/background/menu_table.png'),
-                      pygame.image.load('data/background/diamond.png')]
-        screen.blit(background[0], (0, 0))
-        screen.blit(background[1], (280, 0))
+        fon = pygame.transform.scale(load_image('background\\menu_table.png'), (width, height))
+        screen.blit(fon, (0, 0))
+        fon = pygame.transform.scale(load_image('background\\diamond.png'), (width // 2, height))
+        screen.blit(fon, (315, 0))
+
         x = 525
         y = 100
         for btn in buttons:
-            btn[0].create_button(screen, (239, 239, 239), x, y, 200, 100, 0, btn[1], (0, 0, 0))
+            btn[0].create_button(screen, x, y, 200, 100, 0, btn[1], (0, 0, 0))
             y += 200
 
     # Run the loop
@@ -90,7 +102,4 @@ class Menu:
 
 
 if __name__ == '__main__':
-    pygame.init()
-    size = width, height = 1280, 720
-    screen = pygame.display.set_mode(size)
     menu = Menu()
