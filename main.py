@@ -36,20 +36,27 @@ clock = pygame.time.Clock()
 
 
 class Button:
-    def create_button(self, surface, x, y, length, height, width, text, text_color):
-        surface = self.write_text(surface, text, text_color, length, height, x, y)
+    def __init__(self):
+        self.text_color = (0, 0, 0)
+
+    def create_button(self, surface, x, y, length, height, text):
+        self.surface = self.write_text(surface, text, length, height, x, y)
         self.rect = pygame.Rect(x, y, length, height)
         return surface
 
-    def write_text(self, surface, text, text_color, length, height, x, y):
+    def write_text(self, surface, text, length, height, x, y):
         font_size = int(length // len(text))
         myFont = pygame.font.SysFont("gabriola", font_size)
-        myText = myFont.render(text, 1, text_color)
+        myText = myFont.render(text, True, self.text_color)
         surface.blit(myText, (
-            (x + length / 2) - myText.get_width() / 2, (y + height / 2) - myText.get_height() / 2))
+            (x + length / 2) - myText.get_width() / 2,
+            (y + height / 2) - myText.get_height() / 2))
         return surface
 
-    def pressed(self, mouse):
+    def change_color(self, color):
+        self.text_color = color
+
+    def mouse_here(self, mouse):
         if mouse[0] > self.rect.topleft[0]:
             if mouse[1] > self.rect.topleft[1]:
                 if mouse[0] < self.rect.bottomright[0]:
@@ -81,7 +88,7 @@ class Menu:
         x = 525
         y = 100
         for btn in buttons:
-            btn[0].create_button(screen, x, y, 200, 100, 0, btn[1], (0, 0, 0))
+            btn[0].create_button(screen, x, y, 200, 100, btn[1])
             y += 200
 
     # Run the loop
@@ -90,9 +97,15 @@ class Menu:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     terminate()
+                elif event.type == pygame.MOUSEMOTION:
+                    for btn in buttons:
+                        if btn[0].mouse_here(event.pos):
+                            btn[0].change_color('grey')
+                        else:
+                            btn[0].change_color('black')
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     for btn in buttons:
-                        if btn[0].pressed(event.pos) and btn[1] == 'Quit':
+                        if btn[0].mouse_here(event.pos) and btn[1] == 'Quit':
                             terminate()
                 self.update_display()
                 pygame.display.flip()
