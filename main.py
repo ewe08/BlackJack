@@ -9,13 +9,11 @@ SUITS = ['heart', 'diamond', 'club', 'spade']
 RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king', 'ace']
 
 pygame.init()
-size = width, height = 1280, 720
+pygame.mixer.music.load('sounds\\music.mp3')
+pygame.mixer.music.set_volume(0.15)
+pygame.mixer.music.play(-1)
+size = WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode(size)
-FPS = 50
-clock = pygame.time.Clock()
-all_sprites = pygame.sprite.Group()
-cards_sprites = pygame.sprite.Group()
-bots_cards_sprites = pygame.sprite.Group()
 
 
 def terminate():
@@ -45,6 +43,7 @@ class Label:
         self.text = text
         self.text_color = (255, 255, 225)
         self.font_size = 40
+        self.rect = None
 
     def create_label(self, surface, x, y, length, height):
         surface = self.write_text(surface, length, height, x, y, font_size=self.font_size)
@@ -54,11 +53,11 @@ class Label:
     def write_text(self, surface, length, height, x, y, font_size=None):
         if font_size is None:
             font_size = int(length // len(self.text))
-        myFont = pygame.font.SysFont("gabriola", font_size)
-        myText = myFont.render(self.text, True, self.text_color)
-        surface.blit(myText, (
-            (x + length / 2) - myText.get_width() / 2,
-            (y + height / 2) - myText.get_height() / 2))
+        my_font = pygame.font.SysFont("gabriola", font_size)
+        my_text = my_font.render(self.text, True, self.text_color)
+        surface.blit(my_text, (
+            (x + length / 2) - my_text.get_width() / 2,
+            (y + height / 2) - my_text.get_height() / 2))
         return surface
 
     def change_text(self, text):
@@ -67,8 +66,11 @@ class Label:
 
 class Button:
     def __init__(self):
+        self.was_sound = False
+        self.sound = pygame.mixer.Sound('sounds/button.wav')
         self.text_color = (0, 0, 0)
         self.font_size = None
+        self.rect = None
 
     def create_button(self, surface, x, y, length, height, text):
         surface = self.write_text(surface, text, length, height, x, y, font_size=self.font_size)
@@ -78,11 +80,11 @@ class Button:
     def write_text(self, surface, text, length, height, x, y, font_size=None):
         if font_size is None:
             font_size = int(length // len(text))
-        myFont = pygame.font.SysFont("gabriola", font_size)
-        myText = myFont.render(text, True, self.text_color)
-        surface.blit(myText, (
-            (x + length / 2) - myText.get_width() / 2,
-            (y + height / 2) - myText.get_height() / 2))
+        my_font = pygame.font.SysFont("gabriola", font_size)
+        my_text = my_font.render(text, True, self.text_color)
+        surface.blit(my_text, (
+            (x + length / 2) - my_text.get_width() / 2,
+            (y + height / 2) - my_text.get_height() / 2))
         return surface
 
     def change_color(self, color):
@@ -97,14 +99,21 @@ class Button:
                 if mouse[1] > self.rect.topleft[1]:
                     if mouse[0] < self.rect.bottomright[0]:
                         if mouse[1] < self.rect.bottomright[1]:
+                            if not self.was_sound:
+                                self.sound.play()
+                                self.was_sound = True
                             return True
                         else:
+                            self.was_sound = False
                             return False
                     else:
+                        self.was_sound = False
                         return False
                 else:
+                    self.was_sound = False
                     return False
             else:
+                self.was_sound = False
                 return False
         except AttributeError:
             pass
@@ -123,9 +132,9 @@ class Menu:
 
     # Update the display and show the button
     def update_display(self):
-        fon = pygame.transform.scale(load_image('background\\menu_table.png'), (width, height))
+        fon = pygame.transform.scale(load_image('background\\menu_table.png'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
-        fon = pygame.transform.scale(load_image('background\\diamond.png'), (width // 2, height))
+        fon = pygame.transform.scale(load_image('background\\diamond.png'), (WIDTH // 2, HEIGHT))
         screen.blit(fon, (315, 0))
 
         x = 525
@@ -168,16 +177,14 @@ class Player:
             self.sum_points = self.sum_points + card.points
             label.change_text(str(self.sum_points))
 
-    def ask_card(self, deck):
+    def ask_card(self, deck, game):
         if self.sum_points < 21:
+            game.card_sound.play()
             card = deck.get_card()
             card.image = card.image_card
             card.change_position(self.x, self.y)
             self.p_cards.append(card)
-            self.x = self.x + 30
-
-    def draw_cards(self):
-        cards_sprites.draw(screen)
+            self.x = self.x + 60
 
 
 class Bot:
@@ -187,25 +194,31 @@ class Bot:
         self.x = 400
         self.y = 100
 
-    def change_points(self, label):
+    def change_points(self):
         self.sum_points = 0
         for card in self.cards:
             self.sum_points = self.sum_points + card.points
-            label.change_text(str(self.sum_points))
+
+    def return_points(self, label):
+        label.change_text(str(self.sum_points))
 
     def ask_card(self, deck):
         if self.sum_points < 21:
             card = deck.get_card()
             card.change_position(self.x, self.y)
             self.cards.append(card)
-            self.x = self.x + 30
-
-    def draw_cards(self):
-        bots_cards_sprites.draw(screen)
+            self.change_points()
+            self.x = self.x + 60
 
     def open_card(self):
         for card in self.cards:
             card.image = card.image_card
+
+    def give_card(self):
+        if self.sum_points < 16:
+            self.ask_card(deck_of_cards)
+            return True
+        return False
 
 
 def deck_generation():
@@ -271,7 +284,7 @@ class Card(pygame.sprite.Sprite):
 
 class Game:
     def __init__(self):
-        self.deck = Deck(all_sprites)
+        self.card_sound = pygame.mixer.Sound('sounds/card.wav')
         self.player = Player()
         self.bot = Bot()
         self.buttons = []
@@ -288,7 +301,7 @@ class Game:
         self.main()
 
     def update_display(self):
-        fon = pygame.transform.scale(load_image('background\\table.png'), (width, height))
+        fon = pygame.transform.scale(load_image('background\\table.png'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
         x = 1050
         y = 25
@@ -301,11 +314,11 @@ class Game:
             label.create_label(screen, x, y, 200, 100)
             self.player.change_points(self.labels[1])
             if self.end:
-                self.bot.change_points(self.labels[0])
+                self.bot.return_points(self.labels[0])
             y += 600
         all_sprites.draw(screen)
-        self.player.draw_cards()
-        self.bot.draw_cards()
+        cards_sprites.draw(screen)
+        bots_cards_sprites.draw(screen)
         pygame.display.flip()
 
     def main(self):
@@ -322,8 +335,11 @@ class Game:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     for btn in self.buttons:
                         if btn[0].mouse_here(event.pos) and btn[1] == 'Get Card':
-                            self.player.ask_card(self.deck)
+                            self.player.ask_card(deck_of_cards, self)
+                            self.bot.give_card()
                         elif btn[0].mouse_here(event.pos) and btn[1] == 'Open Cards':
+                            while self.bot.give_card():
+                                pass
                             self.end_game()
             self.update_display()
             if self.start:
@@ -336,8 +352,8 @@ class Game:
 
     def start_the_game(self):
         for _ in range(2):
-            self.bot.ask_card(self.deck)
-            self.player.ask_card(self.deck)
+            self.bot.ask_card(deck_of_cards)
+            self.player.ask_card(deck_of_cards, self)
             self.player.change_points(self.labels[1])
         pygame.display.flip()
 
@@ -348,10 +364,11 @@ class Game:
         pygame.display.flip()
 
     def new_game(self):
-        global all_sprites, cards_sprites, bots_cards_sprites
+        global all_sprites, cards_sprites, bots_cards_sprites, deck_of_cards
         all_sprites = pygame.sprite.Group()
         cards_sprites = pygame.sprite.Group()
         bots_cards_sprites = pygame.sprite.Group()
+        deck_of_cards = Deck(all_sprites)
 
         if self.player.sum_points < self.bot.sum_points <= 21:
             state = "Lose"
@@ -374,7 +391,7 @@ class NewGame:
         self.main()
 
     def update_display(self):
-        fon = pygame.transform.scale(load_image('background\\menu_table.png'), (width, height))
+        fon = pygame.transform.scale(load_image('background\\menu_table.png'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
         x = 525
         y = 400
@@ -405,4 +422,10 @@ class NewGame:
 
 
 if __name__ == '__main__':
+    FPS = 50
+    clock = pygame.time.Clock()
+    all_sprites = pygame.sprite.Group()
+    cards_sprites = pygame.sprite.Group()
+    bots_cards_sprites = pygame.sprite.Group()
+    deck_of_cards = Deck(all_sprites)
     menu = Menu()
