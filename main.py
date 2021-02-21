@@ -14,6 +14,10 @@ pygame.mixer.music.set_volume(0.15)
 pygame.mixer.music.play(-1)
 size = WIDTH, HEIGHT = 1280, 720
 screen = pygame.display.set_mode(size)
+all_sprites = pygame.sprite.Group()
+lobby_sprites = pygame.sprite.Group()
+cards_sprites = pygame.sprite.Group()
+bots_cards_sprites = pygame.sprite.Group()
 
 
 def terminate():
@@ -159,7 +163,7 @@ class Menu:
                         if btn[0].mouse_here(event.pos) and btn[1] == 'Quit':
                             terminate()
                         elif btn[0].mouse_here(event.pos) and btn[1] == 'Start':
-                            Game()
+                            lobby()
                 self.update_display()
                 pygame.display.flip()
 
@@ -284,6 +288,8 @@ class Card(pygame.sprite.Sprite):
 
 class Game:
     def __init__(self):
+        global deck_of_cards
+        deck_of_cards = Deck(all_sprites)
         self.card_sound = pygame.mixer.Sound('sounds/card.wav')
         self.player = Player()
         self.bot = Bot()
@@ -370,9 +376,11 @@ class Game:
         bots_cards_sprites = pygame.sprite.Group()
         deck_of_cards = Deck(all_sprites)
 
-        if self.player.sum_points < self.bot.sum_points <= 21:
+        if 21 >= self.bot.sum_points > self.player.sum_points or \
+                self.bot.sum_points <= 21 < self.player.sum_points:
             state = "Lose"
-        elif self.bot.sum_points < self.player.sum_points <= 21:
+        elif 21 >= self.player.sum_points > self.bot.sum_points or \
+                self.player.sum_points <= 21 < self.bot.sum_points:
             state = "Win"
         elif self.bot.sum_points == self.player.sum_points <= 21:
             state = 'Push'
@@ -381,12 +389,38 @@ class Game:
         NewGame(state)
 
 
+class Win(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(all_sprites)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+        self.image = self.frames[self.cur_frame]
+
+
 class NewGame:
     def __init__(self, state):
         self.buttons = []
+        self.state = state
         self.label = Label(state)
         self.label.font_size = 78
-        for text in ['Again', 'Menu']:
+        self.crown = Win(load_image("spritesheets/win.png"), 8, 1, 575, 150)
+        self.crown_sprite = pygame.sprite.GroupSingle(self.crown)
+        for text in ['Play', 'Lobby']:
             new_button(text, self.buttons)
         self.main()
 
@@ -399,6 +433,10 @@ class NewGame:
             btn[0].create_button(screen, x, y, 200, 100, btn[1])
             y += 100
         self.label.create_label(screen, x, 200, 200, 100)
+        if self.state == 'Win':
+            clock.tick(10)
+            self.crown.update()
+            self.crown_sprite.draw(screen)
 
     def main(self):
         while True:
@@ -413,19 +451,106 @@ class NewGame:
                             btn[0].change_color('white')
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     for btn in self.buttons:
-                        if btn[0].mouse_here(event.pos) and btn[1] == 'Again':
+                        if btn[0].mouse_here(event.pos) and btn[1] == 'Play':
+                            all_sprites.remove(self.crown)
                             Game()
-                        elif btn[0].mouse_here(event.pos) and btn[1] == 'Menu':
-                            Menu()
+                        elif btn[0].mouse_here(event.pos) and btn[1] == 'Lobby':
+                            all_sprites.remove(self.crown)
+                            lobby()
             self.update_display()
             pygame.display.flip()
+
+
+class LobbyPlayer(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(lobby_sprites)
+        self.sound = pygame.mixer.Sound('sounds/step.wav')
+        self.left = True
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        global hero_pos
+
+        if pygame.sprite.collide_mask(self, table):
+            hero_pos = (self.rect.x - 10, self.rect.y)
+            lobby_sprites.remove(self)
+            NewGame('Start?')
+        self.sound.play()
+        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+        self.image = self.frames[self.cur_frame]
+
+    def flip(self):
+        self.image = pygame.transform.flip(self.image, True, False)
+
+
+class Table(pygame.sprite.Sprite):
+    image = load_image('background/table_lobby.png')
+
+    def __init__(self):
+        super().__init__(lobby_sprites)
+        self.image = Table.image
+        self.rect = self.image.get_rect()
+        self.rect.x = 1000
+        self.rect.y = 500
+        self.mask = pygame.mask.from_surface(self.image)
+
+
+class Platform(pygame.sprite.Sprite):
+    image = load_image('background/pol.png')
+
+    def __init__(self):
+        super().__init__(lobby_sprites)
+        self.image = Platform.image
+        self.rect = self.image.get_rect()
+
+
+hero_pos = (100, 510)
+
+
+def lobby():
+    global table
+    x, y = hero_pos
+    for i in range(15):
+        p = Platform()
+        p.rect.bottom = HEIGHT
+        p.rect.x = i * 100
+    table = Table()
+    hero = LobbyPlayer(load_image("hero/player.png", colorkey=-1), 8, 1, x, y)
+    while True:
+        fon = pygame.transform.scale(load_image('background\\lobby.png'), (WIDTH, HEIGHT))
+        screen.blit(fon, (0, 0))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_RIGHT]:
+            hero.rect.x += 12
+            hero.update()
+            hero.flip()
+        if keys[pygame.K_LEFT]:
+            hero.rect.x -= 12
+            hero.update()
+        clock.tick(20)
+        lobby_sprites.draw(screen)
+        pygame.display.flip()
 
 
 if __name__ == '__main__':
     FPS = 50
     clock = pygame.time.Clock()
-    all_sprites = pygame.sprite.Group()
-    cards_sprites = pygame.sprite.Group()
-    bots_cards_sprites = pygame.sprite.Group()
-    deck_of_cards = Deck(all_sprites)
+    deck_of_cards = None
     menu = Menu()
