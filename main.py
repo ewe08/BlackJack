@@ -9,6 +9,7 @@ SUITS = ['heart', 'diamond', 'club', 'spade']
 RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king', 'ace']
 
 pygame.init()
+pygame.display.set_caption('Поход в казино.')
 pygame.mixer.music.load('sounds\\music.mp3')
 pygame.mixer.music.set_volume(0.15)
 pygame.mixer.music.play(-1)
@@ -465,6 +466,7 @@ class LobbyPlayer(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(lobby_sprites)
         self.sound = pygame.mixer.Sound('sounds/step.wav')
+        self.sound.set_volume(0.3)
         self.left = True
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
@@ -484,14 +486,18 @@ class LobbyPlayer(pygame.sprite.Sprite):
 
     def update(self):
         global hero_pos
-
         if pygame.sprite.collide_mask(self, table):
             hero_pos = (self.rect.x - 10, self.rect.y)
             lobby_sprites.remove(self)
             NewGame('Start?')
-        self.sound.play()
+
         self.cur_frame = (self.cur_frame + 1) % len(self.frames)
         self.image = self.frames[self.cur_frame]
+        if self.cur_frame % 4 == 0:
+            self.play_sound()
+
+    def play_sound(self):
+        self.sound.play()
 
     def flip(self):
         self.image = pygame.transform.flip(self.image, True, False)
@@ -505,7 +511,7 @@ class Table(pygame.sprite.Sprite):
         self.image = Table.image
         self.rect = self.image.get_rect()
         self.rect.x = 1000
-        self.rect.y = 500
+        self.rect.y = 530
         self.mask = pygame.mask.from_surface(self.image)
 
 
@@ -529,9 +535,9 @@ def lobby():
         p.rect.bottom = HEIGHT
         p.rect.x = i * 100
     table = Table()
-    hero = LobbyPlayer(load_image("hero/player.png", colorkey=-1), 8, 1, x, y)
+    hero = LobbyPlayer(load_image("spritesheets/player.png", colorkey=-1), 8, 1, x, y)
     while True:
-        fon = pygame.transform.scale(load_image('background\\lobby.png'), (WIDTH, HEIGHT))
+        fon = pygame.transform.scale(load_image('background\\lobby.jpg'), (WIDTH, HEIGHT))
         screen.blit(fon, (0, 0))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
